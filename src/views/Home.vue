@@ -1,18 +1,161 @@
 <template>
-  <div class="home">
-    <img alt="Vue logo" src="../assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
+  <div>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">VueSuperShop</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <div v-if="isAuth">
+              <li class="nav-item">
+                <!-- <a href="/?useremail=<%= useremail %>&error=no">
+                  Домой
+                </a> -->
+                <router-link :to="{name:'Home'}">
+                  Домой
+                </router-link>
+              </li>
+              <li class="nav-item">
+                <!-- <a class="nav-item" @click="getBucket" href="/users/bucket?useremail=<%= useremail %>">
+                    Корзина
+                </a> -->
+                <router-link class="nav-item" :to="{name:'Bucket', query:{ 'useremail': useremail }}">
+                    Корзина
+                </router-link>
+              </li>
+            </div>
+            <div v-else >
+              <li class="nav-item">
+                <!-- <a href="/users/login">
+                    Вход
+                </a> -->
+                <router-link class="nav-item" :to="{name:'UsersLogin'}">
+                    Вход
+                </router-link>
+              </li>
+              <li class="nav-item">
+                  <!-- <a href=/users/register>
+                      Регистрация
+                  </a> -->
+                <router-link class="nav-item" :to="{name:'UsersRegistry'}">
+                  Регистрация
+                </router-link>
+              </li>
+          </div>
+          <div v-if="isAuth">
+            <li>
+                <span class="badge bg-primary">{{ useremail }}</span>
+            </li>
+            <li>
+                <span class="badge bg-primary"><a class="badge bg-primary" @click="logoutUser" >Выйти</a></span>
+            </li>
+            <li>
+                <span class="badge bg-primary"><a class="badge bg-primary" href="/users/amount?useremail=<%= useremail %>&amount=<%= 0 %>">+</a></span>
+            </li>
+          </div>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <div class="card" :v-if="allProducts.length >= 1" v-for="product in allProducts" :key="product._id">
+    <h5 class="card-header">
+          <!-- <a v-if="isAuth" :href="`/product/${product._id}/?useremail=${useremail}`">{{ product.name }}</a> -->
+          <!-- <a v-else :href="'/product/${product._id}/'">{{ product.name }} </a> -->
+          <router-link v-if="isAuth" :to="{ name: 'product', params: { productID: product._id }, query: { useremail: 'useremail' }}">{{ product.name }} </router-link>
+          <router-link v-else :to="{ name: 'product', params: { productID: product._id }}">{{ product.name }} </router-link>
+    </h5>
+    <div class="card-body">
+      <h5 class="card-title">{{ product.price }}</h5>
+      <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>          
+      <!-- <a v-if="isAuth" :href="`/users/bucket/add?useremail=${useremail}&productname=${product.name}&productprice=${product.price}`" class="btn btn-primary">Добавить в корзину</a> -->
+      <a v-if="isAuth" @click="addToBucket(product)" class="btn btn-primary">Добавить в корзину</a>
+    </div> 
   </div>
+  <div :v-else-if="allProducts.length <= 0">
+    Список товаров пуст
+  </div>
+</div>
 </template>
 
 <script>
-// @ is an alias to /src
-import HelloWorld from '@/components/HelloWorld.vue'
-
 export default {
   name: 'Home',
-  components: {
-    HelloWorld
-  }
+  data(){
+    return{
+      allProducts: [],
+      isAuth: window.localStorage.getItem('auth') == 'true',
+      useremail: window.localStorage.getItem('auth') == 'true' ? window.localStorage.getItem('useremail') : ""
+    }
+  },
+  methods:{
+    addToBucket(thisProduct){
+      fetch(`http://localhost:4000/users/bucket/add?useremail=${this.useremail}&productname=${thisProduct.name}&productprice=${thisProduct.price}`, {
+      mode: 'cors',
+      method: 'GET'
+    }).then(response => response.body).then(rb  => {
+        const reader = rb.getReader()
+        return new ReadableStream({
+          start(controller) {
+            function push() {
+              reader.read().then( ({done, value}) => {
+                if (done) {
+                  console.log('done', done);
+                  controller.close();
+                  return;
+                }
+                controller.enqueue(value);
+                console.log(done, value);
+                push();
+              })
+            }
+            push();
+          }
+        });
+    }).then(stream => {
+        return new Response(stream, { headers: { "Content-Type": "text/html" } }).text();
+      })
+      .then(result => {
+        
+      });
+    },
+    logoutUser(){
+      window.localStorage.clear()
+      location.reload()
+      //this.$route.push('/')
+    }
+  },
+  async mounted(){
+    fetch('http://localhost:4000/', {
+      mode: 'cors',
+      method: 'GET'
+    }).then(response => response.body).then(rb  => {
+        const reader = rb.getReader()
+        return new ReadableStream({
+          start(controller) {
+            function push() {
+              reader.read().then( ({done, value}) => {
+                if (done) {
+                  console.log('done', done);
+                  controller.close();
+                  return;
+                }
+                controller.enqueue(value);
+                console.log(done, value);
+                push();
+              })
+            }
+            push();
+          }
+        });
+    }).then(stream => {
+        return new Response(stream, { headers: { "Content-Type": "text/html" } }).text();
+      })
+      .then(result => {
+        console.log(result);
+        this.allProducts = JSON.parse(result)
+      });
+  },
 }
 </script>
